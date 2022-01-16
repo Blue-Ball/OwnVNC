@@ -3,7 +3,6 @@
 
 #include <iostream>
 #include <rfb/rfb.h>
-#include "ResizeWnd.h"
 
 #define FPS 25
 #define UPDATE_INTERVAL (CLOCKS_PER_SEC/FPS) //(CLOCKS_PER_SEC / 10)
