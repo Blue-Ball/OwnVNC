@@ -15,6 +15,12 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="OwnClient.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="OwnClientDlg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="framework.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -24,7 +30,7 @@
     <ClInclude Include="Resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="OwnClient.h">
+    <ClInclude Include="pch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ResizeWnd.h">
@@ -33,6 +39,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="OwnClient.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="OwnClientDlg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ResizeWnd.cpp">
@@ -45,10 +57,12 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="small.ico">
+    <None Include="res\OwnClient.rc2">
       <Filter>Resource Files</Filter>
-    </Image>
-    <Image Include="OwnClient.ico">
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="res\OwnClient.ico">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>
