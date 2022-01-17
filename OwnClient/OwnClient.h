@@ -23,6 +23,7 @@ typedef struct _PARAM_
 	int		nY;
 	int		nWidth;
 	int		nHeight;
+	char* szPassword;
 } PARAM;
 
 class COwnClientApp : public CWinApp

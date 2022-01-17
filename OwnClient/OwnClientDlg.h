@@ -40,6 +40,8 @@ public:
 	afx_msg void OnMove(int x, int y);
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
+	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
+	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 	virtual BOOL DestroyWindow();
 	LRESULT OnDialogShown(WPARAM, LPARAM);
 
@@ -47,5 +49,5 @@ public:
 	CResizeWnd			m_WndResize;
 	rfbClient* m_pClient;
 	CxImage				m_imgDraw;
-	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
+	CPoint				ConvertPointToClient(CPoint pt);
 };

@@ -22,6 +22,7 @@
 #define WM_FIRST_SHOWN WM_USER + 100
 
 COwnClientDlg* g_pDlg = NULL;
+static int buttonMask = 0;
 
 COwnClientDlg::COwnClientDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_OWNCLIENT_DIALOG, pParent)
@@ -46,6 +47,7 @@ BEGIN_MESSAGE_MAP(COwnClientDlg, CDialogEx)
 	ON_WM_TIMER()
 	ON_WM_ERASEBKGND()
 	ON_WM_LBUTTONDOWN()
+	ON_WM_MOUSEMOVE()
 END_MESSAGE_MAP()
 
 int OutputW(const WCHAR* format, ...)
@@ -169,11 +171,17 @@ HCURSOR COwnClientDlg::OnQueryDragIcon()
 LRESULT COwnClientDlg::OnNcHitTest(CPoint point)
 {
 	// TODO: Add your message handler code here and/or call default
-	return HTCAPTION;
+ 	return HTCAPTION;
 	return CDialogEx::OnNcHitTest(point);
 }
 
+static char* doReadPassword(rfbClient* client) {
+	char* p = (char *)calloc(1, 9);
+	strncpy(p, theApp.m_param.szPassword, 8);
+	p[8] = 0;
 
+	return p;
+}
 
 int COwnClientDlg::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
@@ -187,6 +195,7 @@ int COwnClientDlg::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_pClient->serverHost = theApp.m_param.szHost;
 	m_pClient->serverPort = theApp.m_param.nPort;
 	m_pClient->GotFrameBufferUpdate = PrintRect;
+	m_pClient->GetPassword = doReadPassword;
 
 	try
 	{
@@ -311,5 +320,56 @@ BOOL COwnClientDlg::DestroyWindow()
 void COwnClientDlg::OnLButtonDown(UINT nFlags, CPoint point)
 {
 	// TODO: Add your message handler code here and/or call default
+	if (m_pClient)
+	{
+		CPoint	ptConvert;
+		int		x, y, state;
+
+		ptConvert = ConvertPointToClient(point);
+		x = ptConvert.x;
+		y = ptConvert.y;
+		state = rfbButton1Mask;
+		buttonMask |= state;
+
+		SendPointerEvent(m_pClient, x, y, buttonMask);
+		buttonMask &= ~(rfbButton4Mask | rfbButton5Mask);
+	}
 	CDialogEx::OnLButtonDown(nFlags, point);
+}
+
+CPoint COwnClientDlg::ConvertPointToClient(CPoint pt)
+{
+	RECT		rt;
+	CPoint		ptRet;
+	
+	GetClientRect(&rt);
+	if(m_pClient)
+	{
+		ptRet.x = (FLOAT)pt.x / (rt.right - rt.left) * m_pClient->width;
+		ptRet.y = (FLOAT)pt.y / (rt.bottom - rt.top) * m_pClient->height;
+	}
+	else
+	{
+		ptRet = pt;
+	}
+	return ptRet;
+}
+
+void COwnClientDlg::OnMouseMove(UINT nFlags, CPoint point)
+{
+	// TODO: Add your message handler code here and/or call default
+	if (m_pClient)
+	{
+		CPoint	ptConvert;
+		int		x, y, state;
+
+		ptConvert = ConvertPointToClient(point);
+		x = ptConvert.x;
+		y = ptConvert.y;
+		state = 0;
+
+		SendPointerEvent(m_pClient, x, y, buttonMask);
+		buttonMask &= ~(rfbButton4Mask | rfbButton5Mask);
+	}
+	CDialogEx::OnMouseMove(nFlags, point);
 }

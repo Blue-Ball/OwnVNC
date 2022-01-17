@@ -1,130 +1,132 @@
-// OwnServer.cpp : This file contains the 'main' function. Program execution begins and ends there.
+
+// OwnServer.cpp : Defines the class behaviors for the application.
 //
 
-#include <iostream>
-#include <rfb/rfb.h>
-#include "ximage.h"
+#include "pch.h"
+#include "framework.h"
+#include "OwnServer.h"
+#include "OwnServerDlg.h"
 
-#define FPS 25
-#define UPDATE_INTERVAL (CLOCKS_PER_SEC/FPS) //(CLOCKS_PER_SEC / 10)
+#ifdef _DEBUG
+#define new DEBUG_NEW
+#endif
 
-void CaptureScreen(rfbScreenInfoPtr rfbScreen, int nWidth, int nHeight)
+
+// COwnServerApp
+
+BEGIN_MESSAGE_MAP(COwnServerApp, CWinApp)
+	ON_COMMAND(ID_HELP, &CWinApp::OnHelp)
+END_MESSAGE_MAP()
+
+
+// COwnServerApp construction
+
+COwnServerApp::COwnServerApp()
 {
-	HDC hdcDesk = GetDC(HWND_DESKTOP);
-	int nScreenWidth = GetDeviceCaps(hdcDesk, HORZRES);
-	int nScreenHeight = GetDeviceCaps(hdcDesk, VERTRES);
-	HDC hdcCopy = CreateCompatibleDC(hdcDesk);
-	HBITMAP hBm = CreateCompatibleBitmap(hdcDesk, nScreenWidth, nScreenHeight);
-	SelectObject(hdcCopy, hBm);
-	BitBlt(hdcCopy, 0, 0, nScreenWidth, nScreenHeight, hdcDesk, 0, 0, SRCCOPY);
+	// support Restart Manager
+	m_dwRestartManagerSupportFlags = AFX_RESTART_MANAGER_SUPPORT_RESTART;
 
-	// create a CxImage from the screen grab
-	CxImage* image = new CxImage(nScreenWidth, nScreenHeight, 24);
-	GetDIBits(hdcDesk, hBm, 0, nScreenHeight, image->GetBits(),
-		(LPBITMAPINFO)image->GetDIB(), DIB_RGB_COLORS);
-	// image->CreateFromHBITMAP(hBm);
-
-	// clean up the bitmap and dcs
-	ReleaseDC(HWND_DESKTOP, hdcDesk);
-	DeleteDC(hdcCopy);
-	DeleteObject(hBm);
-
-	image->Resample(nWidth, nHeight);
-	int				i, j;
-	for (i = 0; i < nHeight; i++)
-	{
-		// memcpy(rfbScreen->frameBuffer + i * nWidth * 3, image->GetBits(nHeight - i - 1), nWidth * 3);
-		for (j = 0; j < nWidth; j++)
-		{
-			memcpy(rfbScreen->frameBuffer + i * nWidth * 4 + j * 4, 
-				image->GetBits() + (nHeight - i - 1) * nWidth * 3 + j * 3, 3);
-		}
-	}
-
-	delete image;
+	// TODO: add construction code here,
+	// Place all significant initialization in InitInstance
 }
 
-int main(int argc, char* argv[])
+
+// The one and only COwnServerApp object
+
+COwnServerApp theApp;
+
+
+// COwnServerApp initialization
+
+BOOL COwnServerApp::InitInstance()
 {
-	// path, port, width, height
-	if (argc != 4)
+	// InitCommonControlsEx() is required on Windows XP if an application
+	// manifest specifies use of ComCtl32.dll version 6 or later to enable
+	// visual styles.  Otherwise, any window creation will fail.
+	INITCOMMONCONTROLSEX InitCtrls;
+	InitCtrls.dwSize = sizeof(InitCtrls);
+	// Set this to include all the common control classes you want to use
+	// in your application.
+	InitCtrls.dwICC = ICC_WIN95_CLASSES;
+	InitCommonControlsEx(&InitCtrls);
+
+	CWinApp::InitInstance();
+
+
+	AfxEnableControlContainer();
+
+	// Create the shell manager, in case the dialog contains
+	// any shell tree view or shell list view controls.
+	CShellManager *pShellManager = new CShellManager;
+
+	// Activate "Windows Native" visual manager for enabling themes in MFC controls
+	CMFCVisualManager::SetDefaultManager(RUNTIME_CLASS(CMFCVisualManagerWindows));
+
+	// Standard initialization
+	// If you are not using these features and wish to reduce the size
+	// of your final executable, you should remove from the following
+	// the specific initialization routines you do not need
+	// Change the registry key under which our settings are stored
+	// TODO: You should modify this string to be something appropriate
+	// such as the name of your company or organization
+	SetRegistryKey(_T("Local AppWizard-Generated Applications"));
+
+	CCommandLineInfo cmdInfo;
+	ParseCommandLine(cmdInfo);
+
+	COwnServerDlg dlg;
+	m_pMainWnd = &dlg;
+	INT_PTR nResponse = dlg.DoModal();
+	if (nResponse == IDOK)
 	{
-		std::cout << "Invalid arguments." << std::endl;
-		return 0;
+		// TODO: Place code here to handle when the dialog is
+		//  dismissed with OK
+	}
+	else if (nResponse == IDCANCEL)
+	{
+		// TODO: Place code here to handle when the dialog is
+		//  dismissed with Cancel
+	}
+	else if (nResponse == -1)
+	{
+		TRACE(traceAppMsg, 0, "Warning: dialog creation failed, so application is terminating unexpectedly.\n");
+		TRACE(traceAppMsg, 0, "Warning: if you are using MFC controls on the dialog, you cannot #define _AFX_NO_MFC_CONTROLS_IN_DIALOGS.\n");
 	}
 
-	HDC hdcDesk = GetDC(HWND_DESKTOP);
-	int nScreenWidth = GetDeviceCaps(hdcDesk, HORZRES);
-	int nScreenHeight = GetDeviceCaps(hdcDesk, VERTRES);
-	ReleaseDC(HWND_DESKTOP, hdcDesk);
-
-	int		nPort = atoi(argv[1]);
-	int		nWidth = atoi(argv[2]);
-	int		nHeight = atoi(argv[3]);
-
-	if (nWidth == -1)
-		nWidth = nScreenWidth;
-	if (nHeight == -1)
-		nHeight = nScreenHeight;
-
-	if (nWidth & 3)
-		nWidth += 4 - (nWidth & 3);
-
-	printf("Port: %d, Width(rounded): %d, Height: %d\n", nPort, nWidth, nHeight);
-	rfbScreenInfoPtr server = rfbGetScreen(NULL, NULL, nWidth, nHeight, 8, 3, 4);
-	server->port = nPort;
-	server->frameBuffer = (char*)malloc(nWidth * nHeight * 4);
-	server->alwaysShared = TRUE;
-
-	rfbInitServer(server);
-// 	while (1) {
-// 		rfbProcessEvents(server, UPDATE_INTERVAL*1000);
-// 	}
-	rfbRunEventLoop(server, UPDATE_INTERVAL * 1000, TRUE);
-
-	int begin = clock();
-	while (rfbIsActive(server))
+	// Delete the shell manager created above.
+	if (pShellManager != nullptr)
 	{
-		int end = clock();
-		if (end - begin >= UPDATE_INTERVAL)
-		{
-			begin = clock() - (end - begin - UPDATE_INTERVAL);
-
-			CaptureScreen(server, nWidth, nHeight);
-
-			rfbClientPtr cl;
-			rfbClientIteratorPtr iter = rfbGetClientIterator(server);
-			while ((cl = rfbClientIteratorNext(iter)))
-			{
-				rfbMarkRectAsModified(cl->screen, 0, 0, cl->screen->width-1, cl->screen->height-1);
-			}
-			rfbReleaseClientIterator(iter);
-		}
-
-		rfbProcessEvents(server, UPDATE_INTERVAL * 1000);
+		delete pShellManager;
 	}
 
-    std::cout << "Good Bye!\n";
+#if !defined(_AFXDLL) && !defined(_AFX_NO_MFC_CONTROLS_IN_DIALOGS)
+	ControlBarCleanUp();
+#endif
 
-	free(server->frameBuffer);
-	return 0;
+	// Since the dialog has been closed, return FALSE so that we exit the
+	//  application, rather than start the application's message pump.
+	return FALSE;
 }
-// int main()
-// {
-// 	rfbScreenInfoPtr server = rfbGetScreen(NULL, NULL, 400, 300, 8, 3, 4);
-// 	server->frameBuffer = (char *)malloc(400 * 300 * 4);
-// 	rfbInitServer(server);
-// 	rfbRunEventLoop(server, -1, FALSE);
-//     std::cout << "Hello World!\n";
-// }
 
-// Run program: Ctrl + F5 or Debug > Start Without Debugging menu
-// Debug program: F5 or Debug > Start Debugging menu
+void COwnServerApp::ParseCommandLine(CCommandLineInfo& rCmdInfo)
+{
+	COwnServerApp* pApp = (COwnServerApp*)AfxGetApp();
+	if (__argc != 5)
+	{
+		MessageBox(NULL, L"Runtime error : CS 22367", L"Error", MB_OK);
+		// AfxMessageBox(szTemp);
 
-// Tips for Getting Started: 
-//   1. Use the Solution Explorer window to add/manage files
-//   2. Use the Team Explorer window to connect to source control
-//   3. Use the Output window to see build output and other messages
-//   4. Use the Error List window to view errors
-//   5. Go to Project > Add New Item to create new code files, or Project > Add Existing Item to add existing code files to the project
-//   6. In the future, to open this project again, go to File > Open > Project and select the .sln file
+		pApp->m_param.nPort = 5900;
+		pApp->m_param.nWidth = -1;
+		pApp->m_param.nHeight = -1;
+
+		return;
+	}
+
+	pApp->m_param.nPort = _ttoi(__targv[1]);
+	pApp->m_param.nWidth = _ttoi(__targv[2]);
+	pApp->m_param.nHeight = _ttoi(__targv[3]);
+
+	pApp->m_param.szPassword = (char*)malloc(MAX_PATH);
+	sprintf(pApp->m_param.szPassword, "%S", __targv[4]);
+}

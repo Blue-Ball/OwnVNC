@@ -116,7 +116,7 @@ BOOL COwnClientApp::InitInstance()
 void COwnClientApp::ParseCommandLine(CCommandLineInfo & rCmdInfo)
 {
 	COwnClientApp* pApp = (COwnClientApp*)AfxGetApp();
-	if (__argc != 7)
+	if (__argc != 8)
 	{
 		MessageBox(NULL, L"Runtime error : CS 22367", L"Error", MB_OK);
 		// AfxMessageBox(szTemp);
@@ -139,4 +139,7 @@ void COwnClientApp::ParseCommandLine(CCommandLineInfo & rCmdInfo)
 
 	pApp->m_param.nWidth = _ttoi(__targv[5]);
 	pApp->m_param.nHeight = _ttoi(__targv[6]);
+
+	pApp->m_param.szPassword = (char*)malloc(MAX_PATH);
+	sprintf(pApp->m_param.szPassword, "%S", __targv[7]);
 }
