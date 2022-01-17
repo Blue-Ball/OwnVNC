@@ -8,6 +8,7 @@
 #include "OwnClientDlg.h"
 #include "afxdialogex.h"
 #include <time.h>
+#include "ximage.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -18,13 +19,15 @@
 
 #define FPS 25
 #define UPDATE_INTERVAL (CLOCKS_PER_SEC/FPS)
-
 #define WM_FIRST_SHOWN WM_USER + 100
+
+COwnClientDlg* g_pDlg = NULL;
 
 COwnClientDlg::COwnClientDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_OWNCLIENT_DIALOG, pParent)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+	m_pClient = NULL;
 }
 
 void COwnClientDlg::DoDataExchange(CDataExchange* pDX)
@@ -42,6 +45,7 @@ BEGIN_MESSAGE_MAP(COwnClientDlg, CDialogEx)
 	ON_MESSAGE(WM_FIRST_SHOWN, OnDialogShown)
 	ON_WM_TIMER()
 	ON_WM_ERASEBKGND()
+	ON_WM_LBUTTONDOWN()
 END_MESSAGE_MAP()
 
 int OutputW(const WCHAR* format, ...)
@@ -69,8 +73,33 @@ int OutputA(const char* format, ...)
 }
 
 static void PrintRect(rfbClient* client, int x, int y, int w, int h) {
+	if (g_pDlg->m_imgDraw.IsValid() && 
+		g_pDlg->m_imgDraw.GetWidth() == client->width && 
+		g_pDlg->m_imgDraw.GetHeight() == client->height)
+	{
+		int			nTemp = rand() % 256;
+		int			i, j;
 
-	OutputA("%d - Received an update for %d,%d,%d,%d.", (int)time(0), x, y, w, h);
+		for (i = y; i < y + h; i++)
+		{
+			for (j = x; j < x + w; j++)
+			{
+//				memset(g_pDlg->m_imgDraw.GetBits() + (client->height - i - 1) * client->width * 3 + j * 3, nTemp, 3);
+
+//				int b = *(BYTE*)(client->frameBuffer + i * client->width * 4 + j * 4);
+
+   				memcpy(g_pDlg->m_imgDraw.GetBits() + (client->height-i-1) * client->width * 3 + j * 3,
+   					client->frameBuffer + i * client->width * 4 + j * 4, 3);
+			}
+		}
+//		memcpy(g_pDlg->m_imgDraw.GetBits(), client->frameBuffer, client->width * client->height * 3);
+		OutputA("%d - Width: %d, Height %d", (int)time(0), client->width, client->height);
+		OutputA("%d - Received an update for %d, %d, %d, %d", (int)time(0), x, y, w, h);
+	}
+	else
+	{
+		OutputA("Error Update");
+	}
 }
 
 // COwnClientDlg message handlers
@@ -99,10 +128,9 @@ BOOL COwnClientDlg::OnInitDialog()
 
 void COwnClientDlg::OnPaint()
 {
+	CPaintDC dc(this); // device context for painting
 	if (IsIconic())
 	{
-		CPaintDC dc(this); // device context for painting
-
 		SendMessage(WM_ICONERASEBKGND, reinterpret_cast<WPARAM>(dc.GetSafeHdc()), 0);
 
 		// Center icon in client rectangle
@@ -119,6 +147,13 @@ void COwnClientDlg::OnPaint()
 	else
 	{
 		CDialogEx::OnPaint();
+	}
+
+	if (m_imgDraw.IsValid())
+	{
+		RECT		rt;
+		GetClientRect(&rt);
+		m_imgDraw.Draw(dc.m_hDC, rt);
 	}
 }
 
@@ -145,6 +180,8 @@ int COwnClientDlg::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	if (CDialogEx::OnCreate(lpCreateStruct) == -1)
 		return -1;
 
+	g_pDlg = this;
+
 	// TODO:  Add your specialized creation code here
 	m_pClient = rfbGetClient(8, 3, 4);
 	m_pClient->serverHost = theApp.m_param.szHost;
@@ -155,18 +192,21 @@ int COwnClientDlg::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	{
 		if (!rfbInitClient(m_pClient, NULL, NULL))
 		{
-			AfxMessageBox(L"False");
+			m_pClient = NULL;
+			AfxMessageBox(L"Can't connect to server");
 			EndDialog(IDCANCEL);
 			return -1;
 		}
 	}
 	catch (...)
 	{
-		AfxMessageBox(L"Error");
+		m_pClient = NULL;
+		AfxMessageBox(L"Can't connect to server");
 		EndDialog(IDCANCEL);
 		return -1;
 	}
 
+	m_imgDraw.Create(m_pClient->width, m_pClient->height, 24);
 	m_WndResize.Create(this);
 	m_WndResize.ShowWindow(SW_SHOW);
 
@@ -217,23 +257,30 @@ void COwnClientDlg::OnMove(int x, int y)
 void COwnClientDlg::OnTimer(UINT_PTR nIDEvent)
 {
 	// TODO: Add your message handler code here and/or call default
-	int			i;
-	i = WaitForMessage(m_pClient, UPDATE_INTERVAL * 1000);
-	if (i < 0)
+	if(m_pClient)
 	{
-		EndDialog(IDCANCEL);
-		return;
-	}
-	if (i)
-	{
-		if (!HandleRFBServerMessage(m_pClient))
+		int			i;
+		i = WaitForMessage(m_pClient, UPDATE_INTERVAL * 1000);
+		if (i < 0)
 		{
+			rfbClientCleanup(m_pClient);
+			m_pClient = NULL;
 			EndDialog(IDCANCEL);
 			return;
 		}
-	}
+		if (i)
+		{
+			if (!HandleRFBServerMessage(m_pClient))
+			{
+				rfbClientCleanup(m_pClient);
+				m_pClient = NULL;
+				EndDialog(IDCANCEL);
+				return;
+			}
+		}
 
-	Invalidate(FALSE);
+		Invalidate(FALSE);
+	}
 
 	CDialogEx::OnTimer(nIDEvent);
 }
@@ -251,8 +298,18 @@ BOOL COwnClientDlg::DestroyWindow()
 {
 	// TODO: Add your specialized code here and/or call the base class
 	KillTimer(0);
-	if (m_pClient->frameBuffer)
-		free(m_pClient->frameBuffer);
+	if (m_pClient)
+	{
+		if (m_pClient->frameBuffer)
+			free(m_pClient->frameBuffer);
+	}
 
 	return CDialogEx::DestroyWindow();
+}
+
+
+void COwnClientDlg::OnLButtonDown(UINT nFlags, CPoint point)
+{
+	// TODO: Add your message handler code here and/or call default
+	CDialogEx::OnLButtonDown(nFlags, point);
 }

@@ -17,7 +17,7 @@
 
 typedef struct _PARAM_
 {
-	char	szHost[MAX_PATH];
+	char	*szHost;
 	int		nPort;
 	int		nX;
 	int		nY;

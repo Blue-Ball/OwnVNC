@@ -121,7 +121,6 @@ void COwnClientApp::ParseCommandLine(CCommandLineInfo & rCmdInfo)
 		MessageBox(NULL, L"Runtime error : CS 22367", L"Error", MB_OK);
 		// AfxMessageBox(szTemp);
 
-		sprintf(pApp->m_param.szHost, "localhost");
 		pApp->m_param.nPort = 5900;
 		pApp->m_param.nX = -1;
 		pApp->m_param.nY = -1;
@@ -131,6 +130,7 @@ void COwnClientApp::ParseCommandLine(CCommandLineInfo & rCmdInfo)
 		return;
 	}
 
+	pApp->m_param.szHost = (char*)malloc(MAX_PATH);
 	sprintf(pApp->m_param.szHost, "%S", __targv[1]);
 	pApp->m_param.nPort = _ttoi(__targv[2]);
 

@@ -3,13 +3,45 @@
 
 #include <iostream>
 #include <rfb/rfb.h>
+#include "ximage.h"
 
 #define FPS 25
 #define UPDATE_INTERVAL (CLOCKS_PER_SEC/FPS) //(CLOCKS_PER_SEC / 10)
 
 void CaptureScreen(rfbScreenInfoPtr rfbScreen, int nWidth, int nHeight)
 {
-	memset(rfbScreen->frameBuffer, rand() % 256, nWidth * nHeight * 4);
+	HDC hdcDesk = GetDC(HWND_DESKTOP);
+	int nScreenWidth = GetDeviceCaps(hdcDesk, HORZRES);
+	int nScreenHeight = GetDeviceCaps(hdcDesk, VERTRES);
+	HDC hdcCopy = CreateCompatibleDC(hdcDesk);
+	HBITMAP hBm = CreateCompatibleBitmap(hdcDesk, nScreenWidth, nScreenHeight);
+	SelectObject(hdcCopy, hBm);
+	BitBlt(hdcCopy, 0, 0, nScreenWidth, nScreenHeight, hdcDesk, 0, 0, SRCCOPY);
+
+	// create a CxImage from the screen grab
+	CxImage* image = new CxImage(nScreenWidth, nScreenHeight, 24);
+	GetDIBits(hdcDesk, hBm, 0, nScreenHeight, image->GetBits(),
+		(LPBITMAPINFO)image->GetDIB(), DIB_RGB_COLORS);
+	// image->CreateFromHBITMAP(hBm);
+
+	// clean up the bitmap and dcs
+	ReleaseDC(HWND_DESKTOP, hdcDesk);
+	DeleteDC(hdcCopy);
+	DeleteObject(hBm);
+
+	image->Resample(nWidth, nHeight);
+	int				i, j;
+	for (i = 0; i < nHeight; i++)
+	{
+		// memcpy(rfbScreen->frameBuffer + i * nWidth * 3, image->GetBits(nHeight - i - 1), nWidth * 3);
+		for (j = 0; j < nWidth; j++)
+		{
+			memcpy(rfbScreen->frameBuffer + i * nWidth * 4 + j * 4, 
+				image->GetBits() + (nHeight - i - 1) * nWidth * 3 + j * 3, 3);
+		}
+	}
+
+	delete image;
 }
 
 int main(int argc, char* argv[])
@@ -21,9 +53,19 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 
+	HDC hdcDesk = GetDC(HWND_DESKTOP);
+	int nScreenWidth = GetDeviceCaps(hdcDesk, HORZRES);
+	int nScreenHeight = GetDeviceCaps(hdcDesk, VERTRES);
+	ReleaseDC(HWND_DESKTOP, hdcDesk);
+
 	int		nPort = atoi(argv[1]);
 	int		nWidth = atoi(argv[2]);
 	int		nHeight = atoi(argv[3]);
+
+	if (nWidth == -1)
+		nWidth = nScreenWidth;
+	if (nHeight == -1)
+		nHeight = nScreenHeight;
 
 	if (nWidth & 3)
 		nWidth += 4 - (nWidth & 3);
@@ -31,10 +73,15 @@ int main(int argc, char* argv[])
 	printf("Port: %d, Width(rounded): %d, Height: %d\n", nPort, nWidth, nHeight);
 	rfbScreenInfoPtr server = rfbGetScreen(NULL, NULL, nWidth, nHeight, 8, 3, 4);
 	server->port = nPort;
-	server->frameBuffer = (char *)malloc(nWidth * nHeight* 4);
+	server->frameBuffer = (char*)malloc(nWidth * nHeight * 4);
+	server->alwaysShared = TRUE;
 
 	rfbInitServer(server);
-	// rfbRunEventLoop(server, UPDATE_INTERVAL * 1000, FALSE);
+// 	while (1) {
+// 		rfbProcessEvents(server, UPDATE_INTERVAL*1000);
+// 	}
+	rfbRunEventLoop(server, UPDATE_INTERVAL * 1000, TRUE);
+
 	int begin = clock();
 	while (rfbIsActive(server))
 	{
@@ -44,10 +91,17 @@ int main(int argc, char* argv[])
 			begin = clock() - (end - begin - UPDATE_INTERVAL);
 
 			CaptureScreen(server, nWidth, nHeight);
-			
-			rfbMarkRectAsModified(server, 0, 0, nWidth, nHeight);
+
+			rfbClientPtr cl;
+			rfbClientIteratorPtr iter = rfbGetClientIterator(server);
+			while ((cl = rfbClientIteratorNext(iter)))
+			{
+				rfbMarkRectAsModified(cl->screen, 0, 0, cl->screen->width-1, cl->screen->height-1);
+			}
+			rfbReleaseClientIterator(iter);
 		}
-		rfbProcessEvents(server, UPDATE_INTERVAL);
+
+		rfbProcessEvents(server, UPDATE_INTERVAL * 1000);
 	}
 
     std::cout << "Good Bye!\n";

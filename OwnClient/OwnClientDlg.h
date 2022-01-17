@@ -6,6 +6,7 @@
 
 #include "ResizeWnd.h"
 #include <rfb/rfbclient.h>
+#include "ximage.h"
 
 // COwnClientDlg dialog
 class COwnClientDlg : public CDialogEx
@@ -37,12 +38,14 @@ public:
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	afx_msg void OnMove(int x, int y);
+	afx_msg void OnTimer(UINT_PTR nIDEvent);
+	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
+	virtual BOOL DestroyWindow();
 	LRESULT OnDialogShown(WPARAM, LPARAM);
 
 public:
 	CResizeWnd			m_WndResize;
 	rfbClient* m_pClient;
-	afx_msg void OnTimer(UINT_PTR nIDEvent);
-	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
-	virtual BOOL DestroyWindow();
+	CxImage				m_imgDraw;
+	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
 };
