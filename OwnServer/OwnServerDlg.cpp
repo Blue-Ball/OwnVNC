@@ -148,16 +148,25 @@ LRESULT COwnServerDlg::OnDialogShown(WPARAM, LPARAM)
 		theApp.m_param.nWidth += 4 - (theApp.m_param.nWidth & 3);
 
 	m_pScreen = rfbGetScreen(NULL, NULL, theApp.m_param.nWidth, theApp.m_param.nHeight, 8, 3, 4);
+	m_pScreen->desktopName = "OwnServer";
 	m_pScreen->port = theApp.m_param.nPort;
 	m_pScreen->frameBuffer = (char*)malloc(theApp.m_param.nWidth * theApp.m_param.nHeight * 4);
 	m_pScreen->alwaysShared = TRUE;
 	m_pScreen->ptrAddEvent = doptr;
 	
-	char** passwds = (char **)malloc(sizeof(char**) * 2);
-	passwds[0] = theApp.m_param.szPassword;
-	passwds[1] = NULL;
-	m_pScreen->authPasswdData = (void*)passwds;
-	m_pScreen->passwordCheck = rfbCheckPasswordByList;
+	if (theApp.m_param.szPassword == NULL)
+	{
+		m_pScreen->authPasswdData = NULL;
+	}
+	else
+	{
+		char** passwds = (char**)malloc(sizeof(char**) * 2);
+		passwds[0] = theApp.m_param.szPassword;
+		passwds[1] = NULL;
+		m_pScreen->authPasswdData = (void*)passwds;
+		m_pScreen->passwordCheck = rfbCheckPasswordByList;
+	}
+	
 
 	rfbInitServer(m_pScreen);
 

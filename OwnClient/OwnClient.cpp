@@ -121,6 +121,22 @@ void COwnClientApp::ParseCommandLine(CCommandLineInfo & rCmdInfo)
 		MessageBox(NULL, L"Runtime error : CS 22367", L"Error", MB_OK);
 		// AfxMessageBox(szTemp);
 
+		if (__argc == 7)
+		{
+			pApp->m_param.szHost = (char*)malloc(MAX_PATH);
+			sprintf(pApp->m_param.szHost, "%S", __targv[1]);
+			pApp->m_param.nPort = _ttoi(__targv[2]);
+
+			pApp->m_param.nX = _ttoi(__targv[3]);
+			pApp->m_param.nY = _ttoi(__targv[4]);
+
+			pApp->m_param.nWidth = _ttoi(__targv[5]);
+			pApp->m_param.nHeight = _ttoi(__targv[6]);
+
+			pApp->m_param.szPassword = (char*)malloc(MAX_PATH);
+			pApp->m_param.szPassword[0] = 0;
+			return;
+		}
 		pApp->m_param.nPort = 5900;
 		pApp->m_param.nX = -1;
 		pApp->m_param.nY = -1;

@@ -215,6 +215,8 @@ int COwnClientDlg::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		return -1;
 	}
 
+	SetWindowTextA(m_hWnd, m_pClient->desktopName);
+
 	m_imgDraw.Create(m_pClient->width, m_pClient->height, 24);
 	m_WndResize.Create(this);
 	m_WndResize.ShowWindow(SW_SHOW);

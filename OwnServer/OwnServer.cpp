@@ -52,6 +52,24 @@ BOOL COwnServerApp::InitInstance()
 
 	CWinApp::InitInstance();
 
+	// Create mutex
+	HANDLE hMutex = ::CreateMutex(NULL, TRUE, L"MyOwnServer118");
+
+	switch (::GetLastError())
+	{
+	case ERROR_SUCCESS:
+		// Mutex created successfully. There is no instance running
+		break;
+
+	case ERROR_ALREADY_EXISTS:
+		AfxMessageBox(L"Server is already running.");
+		return FALSE;
+
+	default:
+		// Failed to create mutex by unknown reason
+		AfxMessageBox(L"Server can't be executed.");
+		return FALSE;
+	}
 
 	AfxEnableControlContainer();
 
@@ -93,6 +111,8 @@ BOOL COwnServerApp::InitInstance()
 		TRACE(traceAppMsg, 0, "Warning: if you are using MFC controls on the dialog, you cannot #define _AFX_NO_MFC_CONTROLS_IN_DIALOGS.\n");
 	}
 
+	ReleaseMutex(hMutex);
+
 	// Delete the shell manager created above.
 	if (pShellManager != nullptr)
 	{
@@ -119,6 +139,8 @@ void COwnServerApp::ParseCommandLine(CCommandLineInfo& rCmdInfo)
 		pApp->m_param.nPort = 5900;
 		pApp->m_param.nWidth = -1;
 		pApp->m_param.nHeight = -1;
+
+		pApp->m_param.szPassword = NULL;
 
 		return;
 	}
