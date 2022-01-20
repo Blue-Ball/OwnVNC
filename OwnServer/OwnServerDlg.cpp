@@ -7,6 +7,7 @@
 #include "OwnServer.h"
 #include "OwnServerDlg.h"
 #include "afxdialogex.h"
+#include "Global.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -15,19 +16,29 @@
 #define FPS 25
 #define UPDATE_INTERVAL (CLOCKS_PER_SEC/FPS)
 #define WM_FIRST_SHOWN WM_USER + 100
-#define WM_SHOWTASK WM_USER+101
+#define WM_SHOWTASK WM_USER + 101
 
 // COwnServerDlg dialog
+COwnServerDlg* g_pDlg = NULL;
 
 COwnServerDlg::COwnServerDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_OWNSERVER_DIALOG, pParent)
+	, m_nPort(0)
+	, m_nWidth(0)
+	, m_nHeight(0)
+	, m_strPwd(_T(""))
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+	m_bVisible = FALSE;
 }
 
 void COwnServerDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
+	DDX_Text(pDX, IDC_EDIT_PORT, m_nPort);
+	DDX_Text(pDX, IDC_EDIT_WIDTH, m_nWidth);
+	DDX_Text(pDX, IDC_EDIT_HEIGHT, m_nHeight);
+	DDX_Text(pDX, IDC_EDIT_PWD, m_strPwd);
 }
 
 BEGIN_MESSAGE_MAP(COwnServerDlg, CDialogEx)
@@ -37,6 +48,11 @@ BEGIN_MESSAGE_MAP(COwnServerDlg, CDialogEx)
 	ON_MESSAGE(WM_SHOWTASK, onShowTask)
 	ON_MESSAGE(WM_FIRST_SHOWN, OnDialogShown)
 	ON_WM_TIMER()
+	ON_COMMAND(ID_MENU_SETTINGS, &COwnServerDlg::OnMenuSettings)
+	ON_BN_CLICKED(IDOK, &COwnServerDlg::OnBnClickedOk)
+	ON_BN_CLICKED(IDCANCEL, &COwnServerDlg::OnBnClickedCancel)
+	ON_BN_CLICKED(IDC_BTN_GETSCREEN, &COwnServerDlg::OnBnClickedBtnGetscreen)
+	ON_WM_WINDOWPOSCHANGING()
 END_MESSAGE_MAP()
 
 
@@ -79,6 +95,7 @@ BOOL COwnServerDlg::OnInitDialog()
 	PostMessage(WM_FIRST_SHOWN);
 
 	m_pScreen = NULL;
+	g_pDlg = this;
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
 
@@ -118,14 +135,60 @@ HCURSOR COwnServerDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
-static void doptr(int buttonMask, int x, int y, rfbClientPtr cl)
+static int			nPrevX = 0, nPrevY = 0, nPrevButtonMask = 0;
+static void doptr(int buttonMask, int nX, int nY, rfbClientPtr cl)
 {
-	char buffer[1024];
-	if (buttonMask) {
-		sprintf(buffer, "Ptr: mouse button mask 0x%x at %d,%d\n", buttonMask, x, y);
-		printf("%s", buffer);
-// 		output(cl->screen, buffer);
+	OutputA("Ptr: mouse button mask 0x%x at %d,%d\n", buttonMask, nX, nY);
+
+	DWORD flags = MOUSEEVENTF_ABSOLUTE;
+
+	if (nX != nPrevX || nY != nPrevY)
+		flags |= MOUSEEVENTF_MOVE;
+	if ((buttonMask & rfbButton1Mask) != (nPrevButtonMask & rfbButton1Mask))
+	{
+		if (GetSystemMetrics(SM_SWAPBUTTON))
+			flags |= (buttonMask & rfbButton1Mask) ? MOUSEEVENTF_RIGHTDOWN : MOUSEEVENTF_RIGHTUP;
+		else
+			flags |= (buttonMask & rfbButton1Mask) ? MOUSEEVENTF_LEFTDOWN : MOUSEEVENTF_LEFTUP;
 	}
+	if ((buttonMask & rfbButton2Mask) != (nPrevButtonMask & rfbButton2Mask))
+	{
+		flags |= (buttonMask & rfbButton2Mask) ? MOUSEEVENTF_MIDDLEDOWN : MOUSEEVENTF_MIDDLEUP;
+	}
+	if ((buttonMask & rfbButton3Mask) != (nPrevButtonMask & rfbButton3Mask))
+	{
+		if (GetSystemMetrics(SM_SWAPBUTTON))
+			flags |= (buttonMask & rfbButton3Mask) ? MOUSEEVENTF_LEFTDOWN : MOUSEEVENTF_LEFTUP;
+		else
+			flags |= (buttonMask & rfbButton3Mask) ? MOUSEEVENTF_RIGHTDOWN : MOUSEEVENTF_RIGHTUP;
+	}
+
+	DWORD wheel_movement = 0;
+	if (buttonMask & rfbWheelUpMask) {
+		flags |= MOUSEEVENTF_WHEEL;
+		wheel_movement = WHEEL_DELTA;
+	}
+	if (buttonMask & rfbWheelDownMask) {
+		flags |= MOUSEEVENTF_WHEEL;
+		wheel_movement = -WHEEL_DELTA;
+	}
+
+	CPoint		curPos;
+	GetCursorPos(&curPos);
+
+	OutputA("flags: %d, x: %d, y: %d, curX: %d, curY: %d, wheel: %d", flags, nX, nY, curPos.x, curPos.y, wheel_movement);
+
+	unsigned long x = ((nX + 0) * 65535) / (g_pDlg->m_nScreenWidth - 1);
+	unsigned long y = ((nY + 0) * 65535) / (g_pDlg->m_nScreenHeight - 1);
+
+	OutputA("flags: %d, x: %d, y: %d, curX: %d, curY: %d, wheel: %d", flags, x, y, curPos.x, curPos.y, wheel_movement);
+
+	::mouse_event(flags, (DWORD)x, (DWORD)y, wheel_movement, 0);
+
+	nPrevX = x;
+	nPrevY = y;
+	nPrevButtonMask = buttonMask;
+
 	rfbDefaultPtrAddEvent(buttonMask, x, y, cl);
 }
 
@@ -134,34 +197,21 @@ LRESULT COwnServerDlg::OnDialogShown(WPARAM, LPARAM)
 	ToTray();
 	ShowWindow(SW_HIDE);
 
-	HDC hdcDesk = ::GetDC(HWND_DESKTOP);
-	int nScreenWidth = ::GetDeviceCaps(hdcDesk, HORZRES);
-	int nScreenHeight = ::GetDeviceCaps(hdcDesk, VERTRES);
-	::ReleaseDC(HWND_DESKTOP, hdcDesk);
-
-	if (theApp.m_param.nWidth == -1)
-		theApp.m_param.nWidth = nScreenWidth;
-	if (theApp.m_param.nHeight == -1)
-		theApp.m_param.nHeight = nScreenHeight;
-
-	if (theApp.m_param.nWidth & 3)
-		theApp.m_param.nWidth += 4 - (theApp.m_param.nWidth & 3);
-
-	m_pScreen = rfbGetScreen(NULL, NULL, theApp.m_param.nWidth, theApp.m_param.nHeight, 8, 3, 4);
+	m_pScreen = rfbGetScreen(NULL, NULL, g_param.nWidth, g_param.nHeight, 8, 3, 4);
 	m_pScreen->desktopName = "OwnServer";
-	m_pScreen->port = theApp.m_param.nPort;
-	m_pScreen->frameBuffer = (char*)malloc(theApp.m_param.nWidth * theApp.m_param.nHeight * 4);
+	m_pScreen->port = g_param.nPort;
+	m_pScreen->frameBuffer = (char*)malloc(g_param.nWidth * g_param.nHeight * 4);
 	m_pScreen->alwaysShared = TRUE;
 	m_pScreen->ptrAddEvent = doptr;
 	
-	if (theApp.m_param.szPassword == NULL)
+	if (strlen(g_param.szPassword) == 0)
 	{
 		m_pScreen->authPasswdData = NULL;
 	}
 	else
 	{
 		char** passwds = (char**)malloc(sizeof(char**) * 2);
-		passwds[0] = theApp.m_param.szPassword;
+		passwds[0] = g_param.szPassword;
 		passwds[1] = NULL;
 		m_pScreen->authPasswdData = (void*)passwds;
 		m_pScreen->passwordCheck = rfbCheckPasswordByList;
@@ -169,8 +219,6 @@ LRESULT COwnServerDlg::OnDialogShown(WPARAM, LPARAM)
 	
 
 	rfbInitServer(m_pScreen);
-
-	m_imgCapture.Create(theApp.m_param.nWidth, theApp.m_param.nHeight, 24);
 
 	SetTimer(0, UPDATE_INTERVAL, NULL);
 
@@ -230,8 +278,13 @@ BOOL COwnServerDlg::DestroyWindow()
 	// TODO: Add your specialized code here and/or call the base class
 	Shell_NotifyIcon(NIM_DELETE, &m_nid);
 
-	if(m_pScreen)
+	if (m_pScreen->authPasswdData)
+		free(m_pScreen->authPasswdData);
+
+	if (m_pScreen)
 		free(m_pScreen->frameBuffer);
+
+	rfbScreenCleanup(m_pScreen);
 
 	return CDialogEx::DestroyWindow();
 }
@@ -239,16 +292,16 @@ BOOL COwnServerDlg::DestroyWindow()
 void COwnServerDlg::CaptureScreen(rfbScreenInfoPtr rfbScreen, int nWidth, int nHeight)
 {
 	HDC hdcDesk = ::GetDC(HWND_DESKTOP);
-	int nScreenWidth = GetDeviceCaps(hdcDesk, HORZRES);
-	int nScreenHeight = GetDeviceCaps(hdcDesk, VERTRES);
+	m_nScreenWidth = GetDeviceCaps(hdcDesk, HORZRES);
+	m_nScreenHeight = GetDeviceCaps(hdcDesk, VERTRES);
 	HDC hdcCopy = CreateCompatibleDC(hdcDesk);
-	HBITMAP hBm = CreateCompatibleBitmap(hdcDesk, nScreenWidth, nScreenHeight);
+	HBITMAP hBm = CreateCompatibleBitmap(hdcDesk, m_nScreenWidth, m_nScreenHeight);
 	SelectObject(hdcCopy, hBm);
-	BitBlt(hdcCopy, 0, 0, nScreenWidth, nScreenHeight, hdcDesk, 0, 0, SRCCOPY);
+	BitBlt(hdcCopy, 0, 0, m_nScreenWidth, m_nScreenHeight, hdcDesk, 0, 0, SRCCOPY);
 
 	// create a CxImage from the screen grab
-	CxImage* image = new CxImage(nScreenWidth, nScreenHeight, 24);
-	GetDIBits(hdcDesk, hBm, 0, nScreenHeight, image->GetBits(),
+	CxImage* image = new CxImage(m_nScreenWidth, m_nScreenHeight, 24);
+	GetDIBits(hdcDesk, hBm, 0, m_nScreenHeight, image->GetBits(),
 		(LPBITMAPINFO)image->GetDIB(), DIB_RGB_COLORS);
 	// image->CreateFromHBITMAP(hBm);
 
@@ -257,15 +310,19 @@ void COwnServerDlg::CaptureScreen(rfbScreenInfoPtr rfbScreen, int nWidth, int nH
 	DeleteDC(hdcCopy);
 	DeleteObject(hBm);
 
-	image->Resample(nWidth, nHeight);
+	if(nWidth != m_nScreenWidth || nHeight != m_nScreenHeight)
+		image->Resample(nWidth, nHeight);
+
 	int				i, j;
+	int				nTempFrame, nTempImage;
 	for (i = 0; i < nHeight; i++)
 	{
-		// memcpy(rfbScreen->frameBuffer + i * nWidth * 3, image->GetBits(nHeight - i - 1), nWidth * 3);
+		nTempFrame = i * rfbScreen->paddedWidthInBytes;
+		nTempImage = (nHeight - i - 1) * nWidth * 3;
 		for (j = 0; j < nWidth; j++)
 		{
-			memcpy(rfbScreen->frameBuffer + i * rfbScreen->paddedWidthInBytes + j * 4,
-				image->GetBits() + (nHeight - i - 1) * nWidth * 3 + j * 3, 3);
+			memcpy(rfbScreen->frameBuffer + nTempFrame + j * 4,
+				image->GetBits() + nTempImage + j * 3, 3);
 		}
 	}
 
@@ -280,13 +337,20 @@ void COwnServerDlg::OnTimer(UINT_PTR nIDEvent)
 		{
 			int end = clock();
 			
-			CaptureScreen(m_pScreen, theApp.m_param.nWidth, theApp.m_param.nHeight);
+			BOOL		bCaptured = FALSE;
 
 			rfbClientPtr cl;
 			rfbClientIteratorPtr iter = rfbGetClientIterator(m_pScreen);
 			while ((cl = rfbClientIteratorNext(iter)))
 			{
-				rfbMarkRectAsModified(cl->screen, 0, 0, cl->screen->width - 1, cl->screen->height - 1);
+				if (!bCaptured)
+				{
+					CaptureScreen(m_pScreen, m_pScreen->width, m_pScreen->height);
+					bCaptured = TRUE;
+ 					rfbMarkRectAsModified(m_pScreen, 0, 0, m_pScreen->width - 1, m_pScreen->height - 1);
+ 					break;
+				}
+//				rfbMarkRectAsModified(cl->screen, 0, 0, cl->screen->width - 1, cl->screen->height - 1);
 			}
 			rfbReleaseClientIterator(iter);
 
@@ -295,4 +359,64 @@ void COwnServerDlg::OnTimer(UINT_PTR nIDEvent)
 
 	}
 	CDialogEx::OnTimer(nIDEvent);
+}
+
+
+void COwnServerDlg::OnMenuSettings()
+{
+	// TODO: Add your command handler code here
+	m_nPort = g_param.nPort;
+	m_nWidth = g_param.nWidth;
+	m_nHeight = g_param.nHeight;
+	m_strPwd.Format(L"%S", g_param.szPassword);
+	UpdateData(FALSE);
+	m_bVisible = TRUE;
+	ShowWindow(SW_SHOW);
+}
+
+
+void COwnServerDlg::OnBnClickedOk()
+{
+	// TODO: Add your control notification handler code here
+	UpdateData(TRUE);
+	AfxMessageBox(L"This will be applied next launch.");
+	g_param.nPort = m_nPort;
+	g_param.nWidth = m_nWidth;
+	if (g_param.nWidth & 3)
+		g_param.nWidth += 4 - (g_param.nWidth & 3);
+	g_param.nHeight = m_nHeight;
+	sprintf(g_param.szPassword, "%S", m_strPwd.GetBuffer());
+	SaveSettings();
+	m_bVisible = FALSE;
+	ShowWindow(SW_HIDE);
+}
+
+
+void COwnServerDlg::OnBnClickedCancel()
+{
+	// TODO: Add your control notification handler code here
+	m_bVisible = FALSE;
+	ShowWindow(SW_HIDE);
+}
+
+
+void COwnServerDlg::OnBnClickedBtnGetscreen()
+{
+	// TODO: Add your control notification handler code here
+	HDC hdcDesk = ::GetDC(HWND_DESKTOP);
+	m_nWidth = ::GetDeviceCaps(hdcDesk, HORZRES);
+	m_nHeight = ::GetDeviceCaps(hdcDesk, VERTRES);
+	::ReleaseDC(HWND_DESKTOP, hdcDesk);
+
+	UpdateData(FALSE);
+}
+
+void COwnServerDlg::OnWindowPosChanging(WINDOWPOS* lpwndpos)
+{
+	if (!m_bVisible)
+		lpwndpos->flags &= ~SWP_SHOWWINDOW;
+
+	CDialogEx::OnWindowPosChanging(lpwndpos);
+
+	// TODO: Add your message handler code here
 }

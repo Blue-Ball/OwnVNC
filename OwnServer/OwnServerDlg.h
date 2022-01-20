@@ -33,6 +33,7 @@ protected:
 	afx_msg void OnPaint();
 	afx_msg HCURSOR OnQueryDragIcon();
 	afx_msg void OnMenuExit();
+	afx_msg void OnMenuSettings();
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	DECLARE_MESSAGE_MAP()
 
@@ -44,5 +45,15 @@ public:
 
 public:
 	rfbScreenInfoPtr	m_pScreen;
-	CxImage				m_imgCapture;
+	afx_msg void OnBnClickedOk();
+	afx_msg void OnBnClickedCancel();
+	int m_nPort;
+	int m_nWidth;
+	int m_nHeight;
+	int	m_nScreenWidth;
+	int	m_nScreenHeight;
+	CString m_strPwd;
+	BOOL		m_bVisible;
+	afx_msg void OnBnClickedBtnGetscreen();
+	afx_msg void OnWindowPosChanging(WINDOWPOS* lpwndpos);
 };

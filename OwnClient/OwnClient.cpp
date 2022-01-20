@@ -6,6 +6,7 @@
 #include "framework.h"
 #include "OwnClient.h"
 #include "OwnClientDlg.h"
+#include "SplashDlg.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -52,6 +53,8 @@ BOOL COwnClientApp::InitInstance()
 
 	CWinApp::InitInstance();
 
+	CSplashDlg	dlgSplash;
+	dlgSplash.DoModal();
 
 	AfxEnableControlContainer();
 
@@ -108,6 +111,9 @@ BOOL COwnClientApp::InitInstance()
 	ControlBarCleanUp();
 #endif
 
+	free(m_param.szHost);
+	free(m_param.szPassword);
+
 	// Since the dialog has been closed, return FALSE so that we exit the
 	//  application, rather than start the application's message pump.
 	return FALSE;
@@ -116,12 +122,12 @@ BOOL COwnClientApp::InitInstance()
 void COwnClientApp::ParseCommandLine(CCommandLineInfo & rCmdInfo)
 {
 	COwnClientApp* pApp = (COwnClientApp*)AfxGetApp();
-	if (__argc != 8)
+	if (__argc != 10)
 	{
 		MessageBox(NULL, L"Runtime error : CS 22367", L"Error", MB_OK);
 		// AfxMessageBox(szTemp);
 
-		if (__argc == 7)
+		if (__argc == 9)
 		{
 			pApp->m_param.szHost = (char*)malloc(MAX_PATH);
 			sprintf(pApp->m_param.szHost, "%S", __targv[1]);
@@ -132,6 +138,9 @@ void COwnClientApp::ParseCommandLine(CCommandLineInfo & rCmdInfo)
 
 			pApp->m_param.nWidth = _ttoi(__targv[5]);
 			pApp->m_param.nHeight = _ttoi(__targv[6]);
+
+			pApp->m_param.nCompressLevel = _ttoi(__targv[7]);
+			pApp->m_param.nQualityLevel = _ttoi(__targv[8]);
 
 			pApp->m_param.szPassword = (char*)malloc(MAX_PATH);
 			pApp->m_param.szPassword[0] = 0;
@@ -156,6 +165,9 @@ void COwnClientApp::ParseCommandLine(CCommandLineInfo & rCmdInfo)
 	pApp->m_param.nWidth = _ttoi(__targv[5]);
 	pApp->m_param.nHeight = _ttoi(__targv[6]);
 
+	pApp->m_param.nCompressLevel = _ttoi(__targv[7]);
+	pApp->m_param.nQualityLevel = _ttoi(__targv[8]);
+
 	pApp->m_param.szPassword = (char*)malloc(MAX_PATH);
-	sprintf(pApp->m_param.szPassword, "%S", __targv[7]);
+	sprintf(pApp->m_param.szPassword, "%S", __targv[9]);
 }

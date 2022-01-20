@@ -191,6 +191,8 @@
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Global.h" />
+    <ClInclude Include="SplashDlg.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="OwnServer.h" />
     <ClInclude Include="OwnServerDlg.h" />
@@ -199,6 +201,8 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Global.cpp" />
+    <ClCompile Include="SplashDlg.cpp" />
     <ClCompile Include="OwnServer.cpp" />
     <ClCompile Include="OwnServerDlg.cpp" />
     <ClCompile Include="pch.cpp">
@@ -215,6 +219,7 @@
     <None Include="res\OwnServer.rc2" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="res\LogoPng.png" />
     <Image Include="res\OwnServer.ico" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

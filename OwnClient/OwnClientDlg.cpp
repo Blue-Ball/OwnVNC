@@ -46,8 +46,6 @@ BEGIN_MESSAGE_MAP(COwnClientDlg, CDialogEx)
 	ON_MESSAGE(WM_FIRST_SHOWN, OnDialogShown)
 	ON_WM_TIMER()
 	ON_WM_ERASEBKGND()
-	ON_WM_LBUTTONDOWN()
-	ON_WM_MOUSEMOVE()
 END_MESSAGE_MAP()
 
 int OutputW(const WCHAR* format, ...)
@@ -81,22 +79,24 @@ static void PrintRect(rfbClient* client, int x, int y, int w, int h) {
 	{
 		int			nTemp = rand() % 256;
 		int			i, j;
+		int			nTempImage, nTempFrame;
 
 		for (i = y; i < y + h; i++)
 		{
+			nTempImage = (client->height - i - 1) * client->width * 3;
+			nTempFrame = i * client->width * 4;
 			for (j = x; j < x + w; j++)
 			{
-//				memset(g_pDlg->m_imgDraw.GetBits() + (client->height - i - 1) * client->width * 3 + j * 3, nTemp, 3);
-
-//				int b = *(BYTE*)(client->frameBuffer + i * client->width * 4 + j * 4);
-
-   				memcpy(g_pDlg->m_imgDraw.GetBits() + (client->height-i-1) * client->width * 3 + j * 3,
-   					client->frameBuffer + i * client->width * 4 + j * 4, 3);
+   				memcpy(g_pDlg->m_imgDraw.GetBits() + nTempImage + j * 3,
+   					client->frameBuffer + nTempFrame + j * 4, 3);
 			}
 		}
-//		memcpy(g_pDlg->m_imgDraw.GetBits(), client->frameBuffer, client->width * client->height * 3);
 		OutputA("%d - Width: %d, Height %d", (int)time(0), client->width, client->height);
 		OutputA("%d - Received an update for %d, %d, %d, %d", (int)time(0), x, y, w, h);
+
+// 		RECT		rt;
+// 		SetRect(&rt, x, y, x + w, y + h);
+// 		g_pDlg->InvalidateRect(&rt, FALSE);
 	}
 	else
 	{
@@ -171,7 +171,7 @@ HCURSOR COwnClientDlg::OnQueryDragIcon()
 LRESULT COwnClientDlg::OnNcHitTest(CPoint point)
 {
 	// TODO: Add your message handler code here and/or call default
- 	return HTCAPTION;
+// 	return HTCAPTION;
 	return CDialogEx::OnNcHitTest(point);
 }
 
@@ -196,6 +196,9 @@ int COwnClientDlg::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_pClient->serverPort = theApp.m_param.nPort;
 	m_pClient->GotFrameBufferUpdate = PrintRect;
 	m_pClient->GetPassword = doReadPassword;
+	m_pClient->appData.compressLevel = theApp.m_param.nCompressLevel;
+	m_pClient->appData.qualityLevel = theApp.m_param.nQualityLevel;
+	// m_pClient->appData.encodingsString = "tight zrle ultra copyrect hextile zlib corre rre raw";
 
 	try
 	{
@@ -270,6 +273,8 @@ void COwnClientDlg::OnTimer(UINT_PTR nIDEvent)
 	// TODO: Add your message handler code here and/or call default
 	if(m_pClient)
 	{
+//		SendFramebufferUpdateRequest(m_pClient, 0, 0, m_pClient->width, m_pClient->height, TRUE);
+
 		int			i;
 		i = WaitForMessage(m_pClient, UPDATE_INTERVAL * 1000);
 		if (i < 0)
@@ -308,7 +313,7 @@ BOOL COwnClientDlg::OnEraseBkgnd(CDC* pDC)
 BOOL COwnClientDlg::DestroyWindow()
 {
 	// TODO: Add your specialized code here and/or call the base class
-	KillTimer(0);
+//	KillTimer(0);
 	if (m_pClient)
 	{
 		if (m_pClient->frameBuffer)
@@ -318,34 +323,13 @@ BOOL COwnClientDlg::DestroyWindow()
 	return CDialogEx::DestroyWindow();
 }
 
-
-void COwnClientDlg::OnLButtonDown(UINT nFlags, CPoint point)
-{
-	// TODO: Add your message handler code here and/or call default
-	if (m_pClient)
-	{
-		CPoint	ptConvert;
-		int		x, y, state;
-
-		ptConvert = ConvertPointToClient(point);
-		x = ptConvert.x;
-		y = ptConvert.y;
-		state = rfbButton1Mask;
-		buttonMask |= state;
-
-		SendPointerEvent(m_pClient, x, y, buttonMask);
-		buttonMask &= ~(rfbButton4Mask | rfbButton5Mask);
-	}
-	CDialogEx::OnLButtonDown(nFlags, point);
-}
-
 CPoint COwnClientDlg::ConvertPointToClient(CPoint pt)
 {
 	RECT		rt;
 	CPoint		ptRet;
-	
+
 	GetClientRect(&rt);
-	if(m_pClient)
+	if (m_pClient)
 	{
 		ptRet.x = (FLOAT)pt.x / (rt.right - rt.left) * m_pClient->width;
 		ptRet.y = (FLOAT)pt.y / (rt.bottom - rt.top) * m_pClient->height;
@@ -357,21 +341,89 @@ CPoint COwnClientDlg::ConvertPointToClient(CPoint pt)
 	return ptRet;
 }
 
-void COwnClientDlg::OnMouseMove(UINT nFlags, CPoint point)
+LRESULT COwnClientDlg::WindowProc(UINT message, WPARAM wParam, LPARAM lParam)
 {
-	// TODO: Add your message handler code here and/or call default
+	// TODO: Add your specialized code here and/or call the base class
+	int			x, y;
+	CPoint		ptInput, ptConvert;
+	DWORD		keyflags;
+	int			state;
+
 	if (m_pClient)
 	{
-		CPoint	ptConvert;
-		int		x, y, state;
+		switch (message)
+		{
+		case WM_LBUTTONDOWN:
+		case WM_LBUTTONUP:
+		case WM_MBUTTONDOWN:
+		case WM_MBUTTONUP:
+		case WM_RBUTTONDOWN:
+		case WM_RBUTTONUP:
+		case WM_MOUSEMOVE:
 
-		ptConvert = ConvertPointToClient(point);
-		x = ptConvert.x;
-		y = ptConvert.y;
-		state = 0;
+			x = LOWORD(lParam);
+			y = HIWORD(lParam);
 
-		SendPointerEvent(m_pClient, x, y, buttonMask);
-		buttonMask &= ~(rfbButton4Mask | rfbButton5Mask);
+			ptInput.x = x;
+			ptInput.y = y;
+			ptConvert = ConvertPointToClient(ptInput);
+
+			keyflags = MAKEWPARAM(LOWORD(wParam), 0);
+
+			buttonMask = (((keyflags & MK_LBUTTON) ? rfbButton1Mask : 0) |
+				((keyflags & MK_MBUTTON) ? rfbButton2Mask : 0) |
+				((keyflags & MK_RBUTTON) ? rfbButton3Mask : 0));
+
+			if ((short)HIWORD(keyflags) > 0) {
+				buttonMask |= rfbButton4Mask;
+			}
+			else if ((short)HIWORD(keyflags) < 0) {
+				buttonMask |= rfbButton5Mask;
+			}
+
+			SendPointerEvent(m_pClient, ptConvert.x, ptConvert.y, buttonMask);
+
+			if ((short)HIWORD(keyflags) != 0) {
+				// Immediately send a "button-up" after mouse wheel event.
+				buttonMask &= !(rfbButton4Mask | rfbButton5Mask);
+				SendPointerEvent(m_pClient, ptConvert.x, ptConvert.y, buttonMask);
+			}
+			break;
+		case WM_LBUTTONDBLCLK:
+			x = LOWORD(lParam);
+			y = HIWORD(lParam);
+
+			ptInput.x = x;
+			ptInput.y = y;
+			ptConvert = ConvertPointToClient(ptInput);
+
+			SendPointerEvent(m_pClient, ptConvert.x, ptConvert.y, 1);
+			SendPointerEvent(m_pClient, ptConvert.x, ptConvert.y, 0);
+			SendPointerEvent(m_pClient, ptConvert.x, ptConvert.y, 1);
+			SendPointerEvent(m_pClient, ptConvert.x, ptConvert.y, 0);
+			break;
+		case WM_MOUSEWHEEL:
+			x = LOWORD(lParam);
+			y = HIWORD(lParam);
+
+			ptInput.x = x;
+			ptInput.y = y;
+			ptConvert = ConvertPointToClient(ptInput);
+
+			int delta = (SHORT)HIWORD(wParam);
+			int wheelMask = rfbWheelUpMask;
+			if (delta < 0) {
+				wheelMask = rfbWheelDownMask;
+				delta = -delta;
+			}
+			while (delta > 0) {
+				SendPointerEvent(m_pClient, ptConvert.x, ptConvert.y,  wheelMask);
+				delta -= 120;
+			}
+			break;
+		}
 	}
-	CDialogEx::OnMouseMove(nFlags, point);
+
+
+	return CDialogEx::WindowProc(message, wParam, lParam);
 }

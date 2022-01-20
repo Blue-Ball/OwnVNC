@@ -6,6 +6,8 @@
 #include "framework.h"
 #include "OwnServer.h"
 #include "OwnServerDlg.h"
+#include "Global.h"
+#include "SplashDlg.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -52,6 +54,14 @@ BOOL COwnServerApp::InitInstance()
 
 	CWinApp::InitInstance();
 
+// 	DWORD		flags;
+// 	int			x, y;
+// 	flags = 32768; // 32770
+// 	x = 1064;
+// 	y = 606;
+// 	::mouse_event(flags, (DWORD)x, (DWORD)y, 0, 0);
+// 	return 0;
+
 	// Create mutex
 	HANDLE hMutex = ::CreateMutex(NULL, TRUE, L"MyOwnServer118");
 
@@ -71,6 +81,13 @@ BOOL COwnServerApp::InitInstance()
 		return FALSE;
 	}
 
+	CSplashDlg dlgSplash;
+	dlgSplash.DoModal();
+
+	GetAppPath();
+	LoadSettings();
+	SaveSettings();
+
 	AfxEnableControlContainer();
 
 	// Create the shell manager, in case the dialog contains
@@ -88,9 +105,6 @@ BOOL COwnServerApp::InitInstance()
 	// TODO: You should modify this string to be something appropriate
 	// such as the name of your company or organization
 	SetRegistryKey(_T("Local AppWizard-Generated Applications"));
-
-	CCommandLineInfo cmdInfo;
-	ParseCommandLine(cmdInfo);
 
 	COwnServerDlg dlg;
 	m_pMainWnd = &dlg;
@@ -111,6 +125,7 @@ BOOL COwnServerApp::InitInstance()
 		TRACE(traceAppMsg, 0, "Warning: if you are using MFC controls on the dialog, you cannot #define _AFX_NO_MFC_CONTROLS_IN_DIALOGS.\n");
 	}
 
+	free(g_param.szPassword);
 	ReleaseMutex(hMutex);
 
 	// Delete the shell manager created above.
@@ -126,29 +141,4 @@ BOOL COwnServerApp::InitInstance()
 	// Since the dialog has been closed, return FALSE so that we exit the
 	//  application, rather than start the application's message pump.
 	return FALSE;
-}
-
-void COwnServerApp::ParseCommandLine(CCommandLineInfo& rCmdInfo)
-{
-	COwnServerApp* pApp = (COwnServerApp*)AfxGetApp();
-	if (__argc != 5)
-	{
-		MessageBox(NULL, L"Runtime error : CS 22367", L"Error", MB_OK);
-		// AfxMessageBox(szTemp);
-
-		pApp->m_param.nPort = 5900;
-		pApp->m_param.nWidth = -1;
-		pApp->m_param.nHeight = -1;
-
-		pApp->m_param.szPassword = NULL;
-
-		return;
-	}
-
-	pApp->m_param.nPort = _ttoi(__targv[1]);
-	pApp->m_param.nWidth = _ttoi(__targv[2]);
-	pApp->m_param.nHeight = _ttoi(__targv[3]);
-
-	pApp->m_param.szPassword = (char*)malloc(MAX_PATH);
-	sprintf(pApp->m_param.szPassword, "%S", __targv[4]);
 }

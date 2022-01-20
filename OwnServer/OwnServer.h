@@ -15,14 +15,6 @@
 // See OwnServer.cpp for the implementation of this class
 //
 
-typedef struct _PARAM_
-{
-	int		nPort;
-	int		nWidth;
-	int		nHeight;
-	char* szPassword;
-} PARAM;
-
 class COwnServerApp : public CWinApp
 {
 public:
@@ -33,8 +25,6 @@ public:
 	virtual BOOL InitInstance();
 
 // Implementation
-	PARAM	m_param;
-	void ParseCommandLine(CCommandLineInfo& rCmdInfo);
 
 	DECLARE_MESSAGE_MAP()
 };

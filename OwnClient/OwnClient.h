@@ -23,6 +23,8 @@ typedef struct _PARAM_
 	int		nY;
 	int		nWidth;
 	int		nHeight;
+	int		nCompressLevel;
+	int		nQualityLevel;
 	char* szPassword;
 } PARAM;
 
