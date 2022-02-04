@@ -34,14 +34,14 @@ protected:
 	afx_msg HCURSOR OnQueryDragIcon();
 	afx_msg void OnMenuExit();
 	afx_msg void OnMenuSettings();
-	afx_msg void OnTimer(UINT_PTR nIDEvent);
+//	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	DECLARE_MESSAGE_MAP()
 
 public:
 	LRESULT OnDialogShown(WPARAM, LPARAM);
 	LRESULT onShowTask(WPARAM wParam, LPARAM lParam);
 	void ToTray();
-	void CaptureScreen(rfbScreenInfoPtr rfbScreen, int nWidth, int nHeight);
+	BOOL CaptureScreen(rfbScreenInfoPtr rfbScreen, int nWidth, int nHeight);
 
 public:
 	rfbScreenInfoPtr	m_pScreen;
@@ -56,4 +56,6 @@ public:
 	BOOL		m_bVisible;
 	afx_msg void OnBnClickedBtnGetscreen();
 	afx_msg void OnWindowPosChanging(WINDOWPOS* lpwndpos);
+	CString m_strName;
+	uint32_t	m_nChecksum;
 };

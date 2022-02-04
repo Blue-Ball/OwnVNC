@@ -6,6 +6,7 @@ typedef struct _PARAM_
 	int		nWidth;
 	int		nHeight;
 	char* szPassword;
+	char	szName[MAX_PATH];
 } PARAM;
 
 extern WCHAR			g_szAppPath[MAX_PATH];

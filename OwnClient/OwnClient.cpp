@@ -53,8 +53,8 @@ BOOL COwnClientApp::InitInstance()
 
 	CWinApp::InitInstance();
 
-	CSplashDlg	dlgSplash;
-	dlgSplash.DoModal();
+// 	CSplashDlg	dlgSplash;
+// 	dlgSplash.DoModal();
 
 	AfxEnableControlContainer();
 
@@ -142,7 +142,7 @@ void COwnClientApp::ParseCommandLine(CCommandLineInfo & rCmdInfo)
 			pApp->m_param.nCompressLevel = _ttoi(__targv[7]);
 			pApp->m_param.nQualityLevel = _ttoi(__targv[8]);
 
-			pApp->m_param.szPassword = (char*)malloc(MAX_PATH);
+			pApp->m_param.szPassword = (char*)calloc(1, MAX_PATH);
 			pApp->m_param.szPassword[0] = 0;
 			return;
 		}
@@ -168,6 +168,6 @@ void COwnClientApp::ParseCommandLine(CCommandLineInfo & rCmdInfo)
 	pApp->m_param.nCompressLevel = _ttoi(__targv[7]);
 	pApp->m_param.nQualityLevel = _ttoi(__targv[8]);
 
-	pApp->m_param.szPassword = (char*)malloc(MAX_PATH);
+	pApp->m_param.szPassword = (char*)calloc(1, MAX_PATH);
 	sprintf(pApp->m_param.szPassword, "%S", __targv[9]);
 }

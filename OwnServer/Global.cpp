@@ -35,9 +35,12 @@ void LoadSettings()
 	if (g_param.nWidth & 3)
 		g_param.nWidth += 4 - (g_param.nWidth & 3);
 	g_param.nHeight = GetPrivateProfileInt(L"OwnServer", L"Height", nScreenHeight, szPath);
-	g_param.szPassword = (char*)malloc(MAX_PATH);
+	g_param.szPassword = (char*)calloc(1, MAX_PATH);
 	GetPrivateProfileString(L"OwnServer", L"Password", L"", szTemp, MAX_PATH, szPath);
 	sprintf(g_param.szPassword, "%S", szTemp);
+
+	GetPrivateProfileString(L"OwnServer", L"Name", L"VUBIG_VNC", szTemp, MAX_PATH, szPath);
+	sprintf(g_param.szName, "%S", szTemp);
 }
 
 void SaveSettings()
@@ -58,4 +61,7 @@ void SaveSettings()
 
 	swprintf(szTemp, L"%S", g_param.szPassword);
 	WritePrivateProfileString(L"OwnServer", L"Password", szTemp, szPath);
+
+	swprintf(szTemp, L"%S", g_param.szName);
+	WritePrivateProfileString(L"OwnServer", L"Name", szTemp, szPath);
 }

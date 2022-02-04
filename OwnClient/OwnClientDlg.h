@@ -38,7 +38,7 @@ public:
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	afx_msg void OnMove(int x, int y);
-	afx_msg void OnTimer(UINT_PTR nIDEvent);
+//	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 	virtual BOOL DestroyWindow();
 	LRESULT OnDialogShown(WPARAM, LPARAM);
@@ -49,4 +49,7 @@ public:
 	CxImage				m_imgDraw;
 	CPoint				ConvertPointToClient(CPoint pt);
 	virtual LRESULT WindowProc(UINT message, WPARAM wParam, LPARAM lParam);
+	virtual void OnOK();
+	virtual BOOL PreTranslateMessage(MSG* pMsg);
+	uint32_t			m_nChecksum;
 };
