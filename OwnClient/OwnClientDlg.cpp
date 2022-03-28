@@ -80,10 +80,10 @@ static void PrintRect(rfbClient* client, int x, int y, int w, int h) {
 		g_pDlg->m_imgDraw.GetWidth() == client->width && 
 		g_pDlg->m_imgDraw.GetHeight() == client->height)
 	{
-		uint32_t	nTempChecksum = XXHash32::hash(client->frameBuffer, client->width * client->height * 4, 0);
+// 		uint32_t	nTempChecksum = XXHash32::hash(client->frameBuffer, client->width * client->height * 4, 0);
 // 		if (g_pDlg->m_nChecksum == nTempChecksum)
 // 			return;
-		g_pDlg->m_nChecksum = nTempChecksum;
+// 		g_pDlg->m_nChecksum = nTempChecksum;
 
 		int			i, j;
 		int			nTempImage, nTempFrame;
@@ -98,8 +98,8 @@ static void PrintRect(rfbClient* client, int x, int y, int w, int h) {
    					client->frameBuffer + nTempFrame + j * 4, 3);
 			}
 		}
-		// OutputA("%d - Width: %d, Height %d", (int)time(0), client->width, client->height);
-		// OutputA("%d - Received an update for %d, %d, %d, %d", (int)time(0), x, y, w, h);
+		OutputA("%d - Width: %d, Height %d", (int)time(0), client->width, client->height);
+		OutputA("%d - Received an update for %d, %d, %d, %d", (int)time(0), x, y, w, h);
 
 		RECT		rt;
 		g_pDlg->GetClientRect(&rt);
@@ -111,7 +111,8 @@ static void PrintRect(rfbClient* client, int x, int y, int w, int h) {
 		FLOAT	fScaleY = (FLOAT)nClientHeight / h;
 
 		SetRect(&rt, x * fScaleX, y * fScaleY, (x + w) * fScaleX, (y + h) * fScaleY);
-		g_pDlg->InvalidateRect(&rt, FALSE);
+		// g_pDlg->InvalidateRect(&rt, FALSE);
+		g_pDlg->Invalidate(FALSE);
 	}
 	else
 	{

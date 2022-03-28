@@ -244,6 +244,7 @@ BOOL COwnServerDlg::OnInitDialog()
 	m_pScreen = NULL;
 	g_pDlg = this;
 	m_nChecksum = 0xFFFFFF;
+	m_pCompareFrameBuffer = NULL;
 
 	for (int i = 0; i < sizeof(keymap) / sizeof(keymap_t); i++) {
 		vkMap[keymap[i].keysym] = keymap[i].vk;
@@ -449,6 +450,13 @@ int TimeToTakePicture() {
 void ThreadProc(COwnServerDlg* pDlg)
 {
 	long usec;
+	int x, y;
+
+	int min_x = 99999;
+	int min_y = 99999;
+	int max_x = -1;
+	int max_y = -1;
+	int offset = 0;
 
 	while (pDlg->m_pScreen && rfbIsActive(pDlg->m_pScreen)) {
 		if (TimeToTakePicture())
@@ -466,24 +474,65 @@ void ThreadProc(COwnServerDlg* pDlg)
 					bCaptured = TRUE;
 				}
 
-				if (((ClientData*)cl->clientData)->nChecksum != pDlg->m_nChecksum || 
-					((ClientData*)cl->clientData)->nUpdatedCount < 3)
-				{
-					((ClientData*)cl->clientData)->nChecksum = pDlg->m_nChecksum;
-					((ClientData*)cl->clientData)->nUpdatedCount++;
-					bUpdateScreen = TRUE;
-				}
-				else
-				{
-					((ClientData*)cl->clientData)->nUpdatedCount = 0;
-				}
+// 				if (((ClientData*)cl->clientData)->nChecksum != pDlg->m_nChecksum || 
+// 					((ClientData*)cl->clientData)->nUpdatedCount < 3)
+// 				{
+// 					((ClientData*)cl->clientData)->nChecksum = pDlg->m_nChecksum;
+// 					((ClientData*)cl->clientData)->nUpdatedCount++;
+// 					bUpdateScreen = TRUE;
+// 				}
+// 				else
+// 				{
+// 					((ClientData*)cl->clientData)->nUpdatedCount = 0;
+// 				}
+				break;
 
 //				rfbMarkRectAsModified(cl->screen, 0, 0, cl->screen->width - 1, cl->screen->height - 1);
 			}
 			rfbReleaseClientIterator(iter);
-			if (bUpdateScreen)
+			if (bCaptured)
 			{
-				rfbMarkRectAsModified(pDlg->m_pScreen, 0, 0, pDlg->m_pScreen->width - 1, pDlg->m_pScreen->height - 1);
+				min_x = 99999;
+				min_y = 99999;
+				max_x = -1;
+				max_y = -1;
+				offset = 0;
+
+				// rfbMarkRectAsModified(pDlg->m_pScreen, 0, 0, pDlg->m_pScreen->width - 1, pDlg->m_pScreen->height - 1);
+				for (y = 0; y < pDlg->m_pScreen->height; y++)
+				{
+					offset = y * pDlg->m_pScreen->paddedWidthInBytes;
+					for (x = 0; x < pDlg->m_pScreen->width; x++)
+					{
+						char *f = pDlg->m_pScreen->frameBuffer + offset;
+						char *c = pDlg->m_pCompareFrameBuffer + offset;
+
+						if (memcmp(f, c, 3) != 0)
+						{
+							memcpy(f, c, 3);
+							bUpdateScreen = TRUE;
+
+							if (x < min_x)
+								min_x = x;
+
+							if (y < min_y)
+								min_y = y;
+
+							if (x > max_x)
+								max_x = x;
+
+							if (y > max_y)
+								max_y = y;
+						}
+
+						offset += 4;
+					}
+				}
+
+				if (bUpdateScreen)
+				{
+					rfbMarkRectAsModified(cl->screen, min_x, min_y, max_x + 1, max_y + 1);
+				}
 			}
 		}
 
@@ -507,6 +556,8 @@ LRESULT COwnServerDlg::OnDialogShown(WPARAM, LPARAM)
 	m_pScreen->ptrAddEvent = doptr;
 	m_pScreen->kbdAddEvent = doKey;
 	m_pScreen->newClientHook = newclient;
+
+	m_pCompareFrameBuffer = (char*)calloc(g_param.nWidth * g_param.nHeight, 4);
 	
 	if (strlen(g_param.szPassword) == 0)
 	{
@@ -590,6 +641,9 @@ BOOL COwnServerDlg::DestroyWindow()
 	if (m_pScreen)
 		free(m_pScreen->frameBuffer);
 
+	if (m_pCompareFrameBuffer)
+		free(m_pCompareFrameBuffer);
+
 	rfbScreenCleanup(m_pScreen);
 
 	return CDialogEx::DestroyWindow();
@@ -633,14 +687,14 @@ BOOL COwnServerDlg::CaptureScreen(rfbScreenInfoPtr rfbScreen, int nWidth, int nH
 	DeleteDC(hdcCopy);
 	DeleteObject(hBm);
 
-	uint32_t	nTempChecksum = XXHash32::hash(image->GetBits(), image->GetWidth() * image->GetHeight() * 3, 0);
+//	uint32_t	nTempChecksum = XXHash32::hash(image->GetBits(), image->GetWidth() * image->GetHeight() * 3, 0);
 
-	if (nTempChecksum == m_nChecksum)
-	{
-		delete image;
-		return FALSE;
-	}
-	m_nChecksum = nTempChecksum;
+// 	if (nTempChecksum == m_nChecksum)
+// 	{
+// 		delete image;
+// 		return FALSE;
+// 	}
+//	m_nChecksum = nTempChecksum;
 
 	if(nWidth != m_nScreenWidth || nHeight != m_nScreenHeight)
 		image->Resample(nWidth, nHeight);
@@ -653,7 +707,9 @@ BOOL COwnServerDlg::CaptureScreen(rfbScreenInfoPtr rfbScreen, int nWidth, int nH
 		nTempImage = (nHeight - i - 1) * nWidth * 3;
 		for (j = 0; j < nWidth; j++)
 		{
-			memcpy(rfbScreen->frameBuffer + nTempFrame + j * 4,
+// 			memcpy(rfbScreen->frameBuffer + nTempFrame + j * 4,
+// 				image->GetBits() + nTempImage + j * 3, 3);
+			memcpy(m_pCompareFrameBuffer + nTempFrame + j * 4,
 				image->GetBits() + nTempImage + j * 3, 3);
 		}
 	}

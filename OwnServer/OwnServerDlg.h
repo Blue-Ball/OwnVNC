@@ -10,7 +10,7 @@
 // COwnServerDlg dialog
 class COwnServerDlg : public CDialogEx
 {
-// Construction
+	// Construction
 public:
 	COwnServerDlg(CWnd* pParent = nullptr);	// standard constructor
 
@@ -19,7 +19,7 @@ public:
 	enum { IDD = IDD_OWNSERVER_DIALOG };
 #endif
 
-	protected:
+protected:
 	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV support
 
 // Implementation
@@ -34,7 +34,7 @@ protected:
 	afx_msg HCURSOR OnQueryDragIcon();
 	afx_msg void OnMenuExit();
 	afx_msg void OnMenuSettings();
-//	afx_msg void OnTimer(UINT_PTR nIDEvent);
+	//	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	DECLARE_MESSAGE_MAP()
 
 public:
@@ -58,4 +58,5 @@ public:
 	afx_msg void OnWindowPosChanging(WINDOWPOS* lpwndpos);
 	CString m_strName;
 	uint32_t	m_nChecksum;
+	char* m_pCompareFrameBuffer;
 };
